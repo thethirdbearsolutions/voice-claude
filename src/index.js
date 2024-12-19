@@ -57,21 +57,13 @@ export default {
         function generateTwiML(say) {
             return `<?xml version="1.0" encoding="UTF-8"?>
                     <Response> 
-                       <Say>${say}</Say> 
+                       <Say voice="${env.TWILIO_VOICE}">${say}</Say> 
                        <Gather input="speech" action="https://${hostname}/talking" method="POST" speechTimeout="auto">
                        </Gather>
                     </Response>`;
         }
         
-        if (pathname === '/start') {
-            const twiml = new Response(generateTwiML('Hello, this is Claude speaking!'), {
-                headers: {
-                    'Content-Type': 'application/xml',
-                },
-            });
-            return twiml;
-        } else if (pathname === '/talking') {
-            
+        if (pathname === '/talking') {            
             const formData = await request.formData();
             const speechResult = formData.get('SpeechResult');
             const callSid = formData.get('CallSid');
@@ -86,10 +78,14 @@ export default {
                     'Content-Type': 'application/xml',
                 },
             });
-
             return twiml;            
         } else {        
-	    return new Response('ok');
+            const twiml = new Response(generateTwiML('Hello, this is Claude speaking!'), {
+                headers: {
+                    'Content-Type': 'application/xml',
+                },
+            });
+            return twiml;
         }
     },
 };

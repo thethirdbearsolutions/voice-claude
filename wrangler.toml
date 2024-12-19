@@ -6,7 +6,11 @@ compatibility_date = "2024-12-05"
 enabled = true
 
 [vars]
-CLAUDE_MODEL = "claude-3-5-sonnet-20241022"
+# https://docs.anthropic.com/en/docs/about-claude/models#model-names
+CLAUDE_MODEL = "claude-3-5-sonnet-latest"
+
+# https://www.twilio.com/docs/voice/twiml/say/text-speech#available-voices-and-languages
+TWILIO_VOICE = "man"
 
 [[durable_objects.bindings]]
 name = "CONVERSATION"
