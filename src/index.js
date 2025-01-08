@@ -26,6 +26,14 @@ export class VoiceClaudeConversation extends DurableObject {
       },
       body: JSON.stringify({
         system: `You are a helpful assistant. The user is speaking to you over the phone, and their speech is being transcribed for you. Your reply will then be converted back to audio for the user to hear and respond to. So keep your replies a natural length for a phone conversation. Do not focus on text details, correct typos, write very long responses, spell things out, or do other things that don't make sense over the phone or would be annoying to listen to.`,
+        tools: [{
+          name: 'hang_up',
+          description: 'Hang up the phone when you want to end the conversation',
+          input_schema: {
+            type: "object",
+            properties: {},
+          }
+        }],
         model: this.MODEL,
         max_tokens: 500,
         temperature: 1,
@@ -35,18 +43,16 @@ export class VoiceClaudeConversation extends DurableObject {
 
     const claudeResponse = await response.json();
     
-    const responseText = claudeResponse.content[0].text;
-
     conversation.push({
       role: "assistant",
-      content: [{
-        type: "text",
-        text: responseText,
-      }]
+      content: claudeResponse.content
+                             .filter(item => item.text)
+                             .map(item => ({ type: 'text', text: item.text }))
     });
 
     await this.ctx.storage.put('conversation', conversation);
-    return responseText;
+
+    return claudeResponse.content;
   }
 }
 
@@ -56,12 +62,20 @@ export default {
     const { pathname, hostname } = url;
 
     function generateTwiML(say) {
-      return `<?xml version="1.0" encoding="UTF-8"?>
-                    <Response> 
-                       <Say voice="${env.TWILIO_VOICE}">${say}</Say> 
-                       <Gather input="speech" action="https://${hostname}/talking" method="POST" speechTimeout="auto">
-                       </Gather>
-                    </Response>`;
+      return [
+        `<?xml version="1.0" encoding="UTF-8"?>`,
+        `<Response>`,
+        ...say.map(content => {
+          if (content.text) {
+            return `<Say voice="${env.TWILIO_VOICE}">${content.text}</Say>`;
+          }
+          if (content.type === 'tool_use' && content.name === 'hang_up') {
+            return `<Hangup />`;
+          }
+        }).filter(line => line),
+        `<Gather input="speech" action="https://${hostname}/talking" method="POST" speechTimeout="auto"></Gather>`,
+        `</Response>`
+      ].join('\n');
     }
     
     if (pathname === '/talking') {            
@@ -69,11 +83,10 @@ export default {
       const speechResult = formData.get('SpeechResult');
       const callSid = formData.get('CallSid');
 
-      let id = env.CONVERSATION.idFromName(callSid);
-      let stub = env.CONVERSATION.get(id);
+      const id = env.CONVERSATION.idFromName(callSid);
+      const stub = env.CONVERSATION.get(id);
 
-      let reply = await stub.speak(speechResult);
-      
+      const reply = await stub.speak(speechResult);
       const twiml = new Response(generateTwiML(reply), {
         headers: {
           'Content-Type': 'application/xml',
@@ -81,7 +94,7 @@ export default {
       });
       return twiml;            
     } else {        
-      const twiml = new Response(generateTwiML('Hello, this is Claude speaking!'), {
+      const twiml = new Response(generateTwiML([{ text: 'Hello, this is Claude speaking!' }]), {
         headers: {
           'Content-Type': 'application/xml',
         },
