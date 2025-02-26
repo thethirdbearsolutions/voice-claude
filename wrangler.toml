@@ -19,3 +19,10 @@ class_name = "VoiceClaudeConversation"
 [[migrations]]
 tag = "v1"
 new_classes = ["VoiceClaudeConversation"]
+
+# run `npx wrangler d1 create voice-claude` and then paste in the output, which will be something like: 
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "voice-claude"
+# database_id = "your-database-id"
+

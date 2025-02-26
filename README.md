@@ -18,10 +18,20 @@ npm install
 npx wrangler deploy
 
 # Copy your workers.dev URL from the output of the above command
+# In the Twilio admin console, find your new phone number and add 
+# two URLs to the Voice Configuration:
+# * A call comes in: https://your-subdomain.workers.dev
+# * Call status changes: https://your-subdomain.workers.dev/status_callback
 
 # Set up your API key 
 # Paste in your key from Anthropic when prompted
 npx wrangler secret put ANTHROPIC_API_KEY
+
+# Get a database, then paste the output into wrangler.toml
+npx wrangler d1 create voice-claude
+
+# Then set up the schema
+npx wrangler d1 migrations apply --remote voice-claude
 ```
 
 Now call Claude and enjoy!
