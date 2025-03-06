@@ -48,17 +48,46 @@ export class VoiceClaudeConversation extends DurableObject {
         'x-api-key': this.KEY,
       },
       body: JSON.stringify({
-        system: `You are a helpful assistant. The user is speaking to you over the phone, and their speech is being transcribed for you. Your reply will then be converted back to audio for the user to hear and respond to. So keep your replies a natural length for a phone conversation. Do not focus on text details, correct typos, write very long responses, spell things out, or do other things that don't make sense over the phone or would be annoying to listen to.`,
+        system: [{
+          type: 'text',
+          text: `You are a helpful assistant. The user is speaking to you over the phone, and their speech is being transcribed for you. Your reply will then be converted back to audio for the user to hear and respond to. So keep your replies a natural length for a phone conversation. Do not focus on text details, correct typos, write very long responses, spell things out, or do other things that don't make sense over the phone or would be annoying to listen to.`,
+          cache_control: {
+            type: 'ephemeral',
+          },
+        }],
         tools: tools(recallable_conversations),
         model: this.MODEL,
         max_tokens: 500,
         temperature: 1,
-        messages: conversation,
+        messages: (() => {
+          // First pass: find indices of last two user messages
+          const userIndices = [];
+          conversation.forEach((msg, index) => {
+            if (msg.role === "user") {
+              userIndices.push(index);
+            }
+          });
+          
+          // Get the last two user message indices
+          const lastTwoUserIndices = new Set(userIndices.slice(-2));
+
+          // Second pass: process messages
+          return conversation.map((message, index) => {
+            let m = JSON.parse(JSON.stringify(message));
+
+            // Add cache control if this is one of the last two user messages
+            if (lastTwoUserIndices.has(index) && m.content && m.content[0]) {
+              m.content[0].cache_control = {"type": "ephemeral"};
+            }
+            
+            return m;
+          });
+        })(),
       }),
     });
 
     const claudeResponse = await response.json();
-    
+
     conversation.push({
       role: "assistant",
       content: claudeResponse.content
