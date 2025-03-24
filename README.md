@@ -35,3 +35,5 @@ npx wrangler d1 migrations apply --remote voice-claude
 ```
 
 Now call Claude and enjoy!
+
+If you don't want to deal with all that, you can also [visit DialYour.AI](https://dialyour.ai/).
